@@ -65,9 +65,11 @@ public class MathFactoryImpl extends EFactoryImpl implements MathFactory
   {
     switch (eClass.getClassifierID())
     {
+      case MathPackage.PROGRAM: return createProgram();
       case MathPackage.MATH_EXP: return createMathExp();
       case MathPackage.VAR_BINDING: return createVarBinding();
       case MathPackage.EXPRESSION: return createExpression();
+      case MathPackage.EXTERNAL_METHOD: return createExternalMethod();
       case MathPackage.LET_BINDING: return createLetBinding();
       case MathPackage.BINDING: return createBinding();
       case MathPackage.VARIABLE_USE: return createVariableUse();
@@ -76,9 +78,23 @@ public class MathFactoryImpl extends EFactoryImpl implements MathFactory
       case MathPackage.MULT: return createMult();
       case MathPackage.DIV: return createDiv();
       case MathPackage.MATH_NUMBER: return createMathNumber();
+      case MathPackage.PARENTHESIS: return createParenthesis();
+      case MathPackage.EXTERNAL_METHOD_CALL: return createExternalMethodCall();
       default:
         throw new IllegalArgumentException("The class '" + eClass.getName() + "' is not a valid classifier");
     }
+  }
+
+  /**
+   * <!-- begin-user-doc -->
+   * <!-- end-user-doc -->
+   * @generated
+   */
+  @Override
+  public Program createProgram()
+  {
+    ProgramImpl program = new ProgramImpl();
+    return program;
   }
 
   /**
@@ -115,6 +131,18 @@ public class MathFactoryImpl extends EFactoryImpl implements MathFactory
   {
     ExpressionImpl expression = new ExpressionImpl();
     return expression;
+  }
+
+  /**
+   * <!-- begin-user-doc -->
+   * <!-- end-user-doc -->
+   * @generated
+   */
+  @Override
+  public ExternalMethod createExternalMethod()
+  {
+    ExternalMethodImpl externalMethod = new ExternalMethodImpl();
+    return externalMethod;
   }
 
   /**
@@ -211,6 +239,30 @@ public class MathFactoryImpl extends EFactoryImpl implements MathFactory
   {
     MathNumberImpl mathNumber = new MathNumberImpl();
     return mathNumber;
+  }
+
+  /**
+   * <!-- begin-user-doc -->
+   * <!-- end-user-doc -->
+   * @generated
+   */
+  @Override
+  public Parenthesis createParenthesis()
+  {
+    ParenthesisImpl parenthesis = new ParenthesisImpl();
+    return parenthesis;
+  }
+
+  /**
+   * <!-- begin-user-doc -->
+   * <!-- end-user-doc -->
+   * @generated
+   */
+  @Override
+  public ExternalMethodCall createExternalMethodCall()
+  {
+    ExternalMethodCallImpl externalMethodCall = new ExternalMethodCallImpl();
+    return externalMethodCall;
   }
 
   /**

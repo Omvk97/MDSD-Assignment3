@@ -5,94 +5,102 @@ package dk.sdu.mmmi.mdsd.generator
 
 import dk.sdu.mmmi.mdsd.math.Div
 import dk.sdu.mmmi.mdsd.math.LetBinding
-import dk.sdu.mmmi.mdsd.math.MathExp
 import dk.sdu.mmmi.mdsd.math.MathNumber
 import dk.sdu.mmmi.mdsd.math.Minus
 import dk.sdu.mmmi.mdsd.math.Mult
 import dk.sdu.mmmi.mdsd.math.Plus
-import dk.sdu.mmmi.mdsd.math.VarBinding
 import dk.sdu.mmmi.mdsd.math.VariableUse
-import java.util.HashMap
-import java.util.Map
-import javax.swing.JOptionPane
 import org.eclipse.emf.ecore.resource.Resource
 import org.eclipse.xtext.generator.AbstractGenerator
 import org.eclipse.xtext.generator.IFileSystemAccess2
 import org.eclipse.xtext.generator.IGeneratorContext
+import dk.sdu.mmmi.mdsd.math.Program
+import dk.sdu.mmmi.mdsd.math.ExternalMethod
+import dk.sdu.mmmi.mdsd.math.ExternalMethodCall
+import dk.sdu.mmmi.mdsd.math.Expression
+import dk.sdu.mmmi.mdsd.math.Parenthesis
 
-/**
- * Generates code from your model files on save.
- * 
- * See https://www.eclipse.org/Xtext/documentation/303_runtime_concepts.html#code-generation
- */
 class MathGenerator extends AbstractGenerator {
 	
-	static Map<String, Integer> variables;
-
 	override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorContext context) {
-		val math = resource.allContents.filter(MathExp).next
-		val result = math.compute
-		result.displayPanel
-		
-	}
-		
-	def void displayPanel(Map<String, Integer> result) {
-		var resultString = ""
-		for (entry : result.entrySet()) {
-         	resultString += "var " + entry.getKey() + " = " + entry.getValue() + "\n"
-        }
-		
-		JOptionPane.showMessageDialog(null, resultString ,"Math Language", JOptionPane.INFORMATION_MESSAGE)
+		val program = resource.allContents.filter(Program).next
+		generateProgram(program, fsa)
 	}
 	
-	def static compute(MathExp math) {
-		variables = new HashMap()
-		for(varBinding: math.variables)
-			varBinding.computeExpression()
-		variables
+	def static generateProgram(Program program, IFileSystemAccess2 fsa) {
+		var fileName = "math_expression/" + program.name + ".java"
+		var fileContents = generateFileContents(program)
+		fsa.generateFile(fileName, fileContents)
 	}
 	
-	def static dispatch int computeExpression(VarBinding binding) {
-		variables.put(binding.name, binding.expression.computeExpression())
-		return variables.get(binding.name)
+	def static generateFileContents(Program program) {
+		var className = program.name
+		var externalMethodsHaveBeenDefined = program.externalMethods.size != 0
+		return '''
+		package math_expression;
+		
+		public class «className» {
+			
+			«FOR variable : program.math.variables»
+			public int «variable.name»;
+			«ENDFOR»
+			«IF externalMethodsHaveBeenDefined»
+			
+			private External external;
+			
+			public «className»(External external) {
+				this.external = external;
+			}
+			«ENDIF»
+			
+			public void compute() {
+				«FOR variable : program.math.variables»
+				this.«variable.name» = «variable.expression.javaCompileRepresentation»;
+				«ENDFOR»
+			}
+			
+			«IF externalMethodsHaveBeenDefined»
+			// External Method Interfaces
+			«program.generateExternalMethodInterfaces»
+			«ENDIF»
+		}
+		'''
 	}
 	
-	def static dispatch int computeExpression(MathNumber exp) {
-		exp.value
+	def static String javaCompileRepresentation(Expression expression) {
+		switch expression {
+			MathNumber: expression.value.toString
+			Plus: '''«expression.left.javaCompileRepresentation» + «expression.right.javaCompileRepresentation»'''
+			Minus:  '''«expression.left.javaCompileRepresentation» - «expression.right.javaCompileRepresentation»'''
+			Mult: '''«expression.left.javaCompileRepresentation» * «expression.right.javaCompileRepresentation»'''
+			Div: '''«expression.left.javaCompileRepresentation» / «expression.right.javaCompileRepresentation»'''
+			Parenthesis: '''(«expression.expression.javaCompileRepresentation»)'''
+			LetBinding: '''«expression.body.javaCompileRepresentation»'''
+			VariableUse: {
+				var ref = expression.ref
+				if (ref instanceof LetBinding) {
+					return '''(«ref.binding.javaCompileRepresentation»)'''
+				}
+				return ref.name
+			}
+			ExternalMethodCall: '''this.external.«expression.method.name»(«FOR argument: expression.arguments SEPARATOR ', '»«argument.javaCompileRepresentation»«ENDFOR»)'''
+		}
 	}
 
-	def static dispatch int computeExpression(Plus exp) {
-		exp.left.computeExpression + exp.right.computeExpression
+	def static generateExternalMethodInterfaces(Program program) {
+		
+		return '''
+		public interface External {
+			«FOR exMethod : program.externalMethods»
+			public int «exMethod.name»(«exMethod.generateExternalInterfaceParameters»);
+			«ENDFOR»
+		}
+		'''
 	}
 	
-	def static dispatch int computeExpression(Minus exp) {
-		exp.left.computeExpression - exp.right.computeExpression
-	}
-	
-	def static dispatch int computeExpression(Mult exp) {
-		exp.left.computeExpression * exp.right.computeExpression
-	}
-	
-	def static dispatch int computeExpression(Div exp) {
-		exp.left.computeExpression / exp.right.computeExpression
-	}
-
-	def static dispatch int computeExpression(LetBinding exp) {
-		exp.body.computeExpression
-	}
-	
-	def static dispatch int computeExpression(VariableUse exp) {
-		exp.ref.computeBinding
-	}
-
-	def static dispatch int computeBinding(VarBinding binding){
-		if(!variables.containsKey(binding.name))
-			binding.computeExpression()			
-		variables.get(binding.name)
-	}
-	
-	def static dispatch int computeBinding(LetBinding binding){
-		binding.binding.computeExpression
+	def static generateExternalInterfaceParameters(ExternalMethod externalMethod) {
+		var counter = 0;
+		return '''«FOR type : externalMethod.types SEPARATOR ', '»«type» «externalMethod.name»«type.toFirstUpper»«counter++»«ENDFOR»'''
 	}
 	
 }
